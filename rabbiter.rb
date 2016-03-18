@@ -128,6 +128,10 @@ module Ilm
           @response_callback = call
         end
 
+        def on_response
+          @response_callback
+        end
+
         def receive_msg(body, properties)
           begin
 
@@ -150,25 +154,7 @@ module Ilm
 
             if message_id
 
-              @response_callback.(message_id, body)
-              ###THIS IS SPECIFIC FOR THIS RUBY SOLUTION
-              #call controller by name
-              callKey = message_id.split("#")
-              actionKey = callKey[1]
-
-              controller_key = 'api/v1/' + callKey[0] + '_controller'
-
-              #TODO: CHECK IF THE CONTROLLER EXISTS
-              #reload_modules_from_disk(controller_key)
-
-              puts "Controller Key: #{controller_key}"
-              controller = controller_key.classify.safe_constantize.new
-
-              params = Ilm::Rabbiter::Rabbiter.aux.convert_hash_keys(JSON.parse(body, :symbolize_names => true))
-
-              controller.send("context=", context)
-              controller.send("jsonapi_params=", params)
-              rsp = controller.send(actionKey)
+              rsp = on_response.(properties, body)
 
               puts "Controller Response #{rsp}\n\n"
 
@@ -314,11 +300,30 @@ module Ilm
               queues_names = [queue_name("normal"), queue_name("high"), queue_name("low"), response_queue_name]
             end
 
-            on_response_callback = lambda do |message_id, body|
-              "\n\n\n\n===== PUTS CALLBACK\n\n\n\n"
+            #default callback message_id = "controller#action"
+            on_response_callback = -> properties, body do
+
+              #call controller by name
+              callKey = properties[:message_id].split("#")
+              actionKey = callKey[1]
+
+              controller_key = 'api/v1/' + callKey[0] + '_controller'
+
+              #TODO: CHECK IF THE CONTROLLER EXISTS
+              #reload_modules_from_disk(controller_key)
+
+              puts "Controller Key: #{controller_key}"
+              controller = controller_key.classify.safe_constantize.new
+
+              params = Ilm::Rabbiter::Rabbiter.aux.convert_hash_keys(JSON.parse(body, :symbolize_names => true))
+
+              controller.send("context=", properties[:headers])
+              controller.send("jsonapi_params=", params)
+              return controller.send(actionKey)
+
             end
 
-            Ilm::Rabbiter::Rabbiter.publisher.on_response(on_response_callback)
+            Ilm::Rabbiter::Rabbiter.publisher.on_response = on_response_callback
 
             #create queues
             queues_names.each do |queue_name|
