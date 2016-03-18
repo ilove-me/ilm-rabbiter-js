@@ -124,6 +124,10 @@ module Ilm
           @mutex ||= Mutex.new
         end
 
+        def on_response=(call)
+          @response_callback = call
+        end
+
         def receive_msg(body, properties)
           begin
 
@@ -145,6 +149,8 @@ module Ilm
             end
 
             if message_id
+
+              @response_callback.(message_id, body)
               ###THIS IS SPECIFIC FOR THIS RUBY SOLUTION
               #call controller by name
               callKey = message_id.split("#")
@@ -221,7 +227,7 @@ module Ilm
                 host: ENV['RABBIT_HOST'],
                 port: ENV['RABBIT_PORT']
             },
-            queue_name: ENV['RABBIT_QUEUE'] || "",
+            queue_name: (ENV['RABBIT_QUEUE'] || "") + (ENV['RABBIT_SUFIX'] ? "_" + ENV['RABBIT_SUFIX'].to_s : ""),
             exchange_name: ENV['RABBIT_EXCHANGE'] || "",
             prefetch: 0,
             durable: false,
@@ -279,6 +285,9 @@ module Ilm
 
         def create
 
+          #NONE NAO FAZ NADA
+          return if ENV['RABBIT_TYPE'] == "none"
+
           #create connection
           begin
             @@connection = Bunny.new(connection_uri)
@@ -299,11 +308,20 @@ module Ilm
 
 
             #bind queues
+            if ENV['RABBIT_TYPE'] == "publisher"
+              queues_names = [response_queue_name]
+            else
+              queues_names = [queue_name("normal"), queue_name("high"), queue_name("low"), response_queue_name]
+            end
 
-            that = self
+            on_response_callback = lambda do |message_id, body|
+              "\n\n\n\n===== PUTS CALLBACK\n\n\n\n"
+            end
+
+            Ilm::Rabbiter::Rabbiter.publisher.on_response(on_response_callback)
 
             #create queues
-            [queue_name("normal"), queue_name("high"), queue_name("low"), response_queue_name].each do |queue_name|
+            queues_names.each do |queue_name|
 
               queue = @@channel.queue(queue_name, {durable: @@options[:durable], auto_delete: @@options[:auto_delete], routing_key: queue_name})
 
@@ -317,6 +335,8 @@ module Ilm
 
             end
 
+
+              puts "Rabbiter sucessfully loaded for service #{@@options[:queue_name]}!"
 
           rescue Bunny::PreconditionFailed => e
             puts "Channel-level exception! Code: #{e.channel_close.reply_code}, message: #{e.channel_close.reply_text}".squish
