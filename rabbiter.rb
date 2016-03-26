@@ -309,8 +309,8 @@ module Ilm
 
               controller_key = 'api/v1/' + callKey[0] + '_controller'
 
+
               #TODO: CHECK IF THE CONTROLLER EXISTS
-              #reload_modules_from_disk(controller_key)
 
               puts "Controller Key: #{controller_key}"
               controller = controller_key.classify.safe_constantize.new
