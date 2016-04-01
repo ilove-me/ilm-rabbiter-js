@@ -1,5 +1,6 @@
 require 'singleton'
 require 'bunny'
+require 'thread/pool'
 
 module Ilm
   module Rabbiter
@@ -132,6 +133,7 @@ module Ilm
           @response_callback
         end
 
+
         def receive_msg(body, properties)
           begin
 
@@ -246,6 +248,10 @@ module Ilm
         end
 
 
+        def thread_pool
+          @thread_pool ||= Thread.pool( ENV["DB_POOL"] || ENV['MAX_THREADS'] || 20)
+        end
+
         def reload_modules_from_disk(controller_key, all_models = true)
           #reload from disk if not in production
 
@@ -333,7 +339,7 @@ module Ilm
               queue.bind(ENV['RABBIT_EXCHANGE'], routing_key: queue_name)
 
               queue.subscribe do |delivery_info, properties, body|
-                Thread.new do
+                thread_pool.process do
                   Ilm::Rabbiter::Rabbiter.publisher.receive_msg(body, properties)
                 end
               end
