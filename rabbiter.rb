@@ -1,6 +1,6 @@
 require 'singleton'
 require 'bunny'
-require 'thread/pool'
+require 'concurrent'
 
 module Ilm
   module Rabbiter
@@ -46,6 +46,16 @@ module Ilm
 
       class Callbacks
 
+        def event(id)
+          @events_map ||= {}
+
+          @events_map[id] ||= Concurrent::Event.new
+        end
+
+        def has_event(key)
+          @events_map.has_key?(key)
+        end
+
         def condition_variables_map
           @condition_variables_map ||= {}
         end
@@ -61,7 +71,7 @@ module Ilm
           puts "======== WAIT CONDITION #{key} - #{cv}"
 
           condition_variables_map[key] = cv
-          cv.wait(mutex)
+          cv.wait(mutex, 5)
         end
 
         def signal_condition(key)
@@ -81,6 +91,11 @@ module Ilm
         def set_response(key, response)
           response_map[key] = response
         end
+
+        def has_response(key)
+          response_map.has_key?(key)
+        end
+
 
         def get_response(key)
           rsp = JSON.parse(response_map[key], :symbolize_names => true)
@@ -151,6 +166,8 @@ module Ilm
             if correlation_id && Ilm::Rabbiter::Rabbiter.callbacks.has_condition(correlation_id)
               Ilm::Rabbiter::Rabbiter.callbacks.set_response(correlation_id, body)
               mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.signal_condition(correlation_id) }
+              #Ilm::Rabbiter::Rabbiter.callbacks.event(correlation_id).set
+
               return
             end
 
@@ -196,7 +213,15 @@ module Ilm
           if message_id and sync #se tiver um message ID é porque fez um pedido e tem de esperar por ele, dada a natureza sincrona do ruby
             mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.wait_condition(send_opts[:correlation_id], mutex) }
 
-            rsp = Ilm::Rabbiter::Rabbiter.callbacks.get_response(send_opts[:correlation_id])
+            #ev = Ilm::Rabbiter::Rabbiter.callbacks.event(send_opts[:correlation_id]).wait()
+            #if ev
+            puts "RESPONSE #{send_opts[:correlation_id]} == #{Ilm::Rabbiter::Rabbiter.callbacks.has_response(send_opts[:correlation_id])}"
+            if Ilm::Rabbiter::Rabbiter.callbacks.has_response(send_opts[:correlation_id])
+              rsp = Ilm::Rabbiter::Rabbiter.callbacks.get_response(send_opts[:correlation_id])
+            else
+              #should try again?
+              puts Exception.new("Timeout - waiting for too long for response #{send_opts[:correlation_id]}")
+            end
           end
 
           rsp
@@ -249,7 +274,7 @@ module Ilm
 
 
         def thread_pool
-          @thread_pool ||= Thread.pool( ENV["DB_POOL"] || ENV['MAX_THREADS'] || 20)
+          @thread_pool ||= Concurrent::FixedThreadPool.new(ENV["DB_POOL"] || ENV['MAX_THREADS'].to_i || 20)
         end
 
         def reload_modules_from_disk(controller_key, all_models = true)
@@ -339,7 +364,8 @@ module Ilm
               queue.bind(ENV['RABBIT_EXCHANGE'], routing_key: queue_name)
 
               queue.subscribe do |delivery_info, properties, body|
-                thread_pool.process do
+                thread_pool.post do
+
                   Ilm::Rabbiter::Rabbiter.publisher.receive_msg(body, properties)
                 end
               end
@@ -362,6 +388,11 @@ module Ilm
           [queue_name("normal"), queue_name("high"), queue_name("low"), response_queue_name].each do |priority|
             @@channel.queue_delete(queue_name(priority))
           end
+
+          thread_pool.shutdown
+
+          # now wait for all work to complete, wait as long as it takes
+          thread_pool.wait_for_termination
 
           @@channel.close
         end
