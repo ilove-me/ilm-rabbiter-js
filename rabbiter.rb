@@ -306,12 +306,7 @@ module Ilm
           return if ENV['RABBIT_TYPE'] == "none"
 
           #create connection
-          begin
-            @@connection = Bunny.new(connection_uri)
-            @@connection.start
-          rescue Bunny::TCPConnectionFailed => e
-            puts "Connection failed"
-          end
+          create_connection
 
 
           begin
@@ -381,6 +376,25 @@ module Ilm
             delete_connection
           end
 
+        end
+
+        def create_connection(total = 0)
+          begin
+            @@connection = Bunny.new(connection_uri)
+            @@connection.start
+
+            puts "Successfully connected to Rabbiter Server"
+          rescue Bunny::TCPConnectionFailed => e
+            puts "Rabbiter Server Connection failed"
+
+            if total > 10
+              puts "Exceeded number of Connection retries"
+            else
+              sleep(5)
+              puts "Retrying to connect..."
+              create_connection(total+1)
+            end
+          end
         end
 
 
