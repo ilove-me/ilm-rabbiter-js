@@ -71,7 +71,7 @@ module Ilm
           puts "======== WAIT CONDITION #{key} - #{cv}"
 
           condition_variables_map[key] = cv
-          cv.wait(mutex, 5)
+          cv.wait(mutex, 15)
         end
 
         def signal_condition(key)
@@ -202,13 +202,16 @@ module Ilm
               correlation_id: correlation_id || "#{rand}",
               headers: {
                   user_id: user_id
-              }
+              },
+              mandatory: true #returned if no binding found
           }
 
           puts "\n\n\n--------\nSENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}"
 
           #@@channel.basic_publish(msg.to_s, ENV['RABBIT_EXCHANGE'], msg_id || send_queue, send_opts)
           rsp = Ilm::Rabbiter::Rabbiter.connector.exchange.publish(msg.to_s, send_opts)
+
+
 
           if message_id and sync #se tiver um message ID é porque fez um pedido e tem de esperar por ele, dada a natureza sincrona do ruby
             mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.wait_condition(send_opts[:correlation_id], mutex) }
@@ -318,6 +321,15 @@ module Ilm
 
             @@exchange = @@channel.direct(ENV['RABBIT_EXCHANGE'])
 
+            @@exchange.on_return do |return_info, properties, content|
+              puts "Got a returned message: #{content} #{properties} #{return_info}"
+
+              sleep(5)
+              puts "RETRYING TO SEND MESSAGE"
+              send_msg(return_info[:routing_key], properties[:message_id], content,
+                       properties[:correlation_id], properties[:headers] && properties[:headers]["user_id"])
+
+            end
 
             #bind queues
             if ENV['RABBIT_TYPE'] == "publisher"
