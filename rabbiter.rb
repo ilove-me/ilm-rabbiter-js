@@ -277,7 +277,7 @@ module Ilm
 
 
         def thread_pool
-          @thread_pool ||= Concurrent::FixedThreadPool.new(Integer(ENV['MAX_THREADS'] || 20))
+          @thread_pool ||= Concurrent::FixedThreadPool.new(Integer(ENV['MAX_THREADS'] || 5))
         end
 
         def reload_modules_from_disk(controller_key, all_models = true)
