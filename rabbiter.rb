@@ -116,14 +116,16 @@ module Ilm
         def convert_hash_keys(value)
           case value
             when Array
-              value.map { |v| convert_hash_keys(v) }
+              value.map { |v| convert_hash_keys(v) }.delete_if {|value| value.blank? }
             # or `value.map(&method(:convert_hash_keys))`
             when Hash
-              Hash[value.map { |k, v| [underscore_key(k), convert_hash_keys(v)] }]
+              Hash[value.map { |k, v| [underscore_key(k), convert_hash_keys(v)] }].delete_if {|key, value| value.blank? }
             else
               value
           end
+
         end
+
 
         def underscore_key(k)
           k.to_s.underscore.to_sym
