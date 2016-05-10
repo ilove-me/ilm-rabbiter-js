@@ -277,7 +277,7 @@ module Ilm
 
 
         def thread_pool
-          puts "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'])}"
+          puts "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'] || 5)}"
           @thread_pool ||= Concurrent::FixedThreadPool.new(Integer(ENV['MAX_THREADS'] || 5))
         end
 
