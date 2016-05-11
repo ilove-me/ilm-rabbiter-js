@@ -116,10 +116,10 @@ module Ilm
         def convert_hash_keys(value)
           case value
             when Array
-              value.map { |v| convert_hash_keys(v) }.delete_if {|value| value.blank? }
+              value.map { |v| convert_hash_keys(v) }
             # or `value.map(&method(:convert_hash_keys))`
             when Hash
-              Hash[value.map { |k, v| [underscore_key(k), convert_hash_keys(v)] }].delete_if {|key, value| value.blank? }
+              Hash[value.map { |k, v| [underscore_key(k), convert_hash_keys(v)] }]
             else
               value
           end
@@ -184,12 +184,12 @@ module Ilm
             end
 
 
-          rescue Exception => e
+          rescue StandardError => e
             puts "\n\nERROR CONTROLLER RESPONSE : #{e}\n\n"
             puts e.backtrace
 
             #when responding it should be asynchronous
-            Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.error(e), correlation_id, context)
+            Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.error(e.as_json), correlation_id, context)
 
           end
         end
@@ -357,6 +357,7 @@ module Ilm
               controller = controller_key.classify.safe_constantize.new
 
               params = Ilm::Rabbiter::Rabbiter.aux.convert_hash_keys(JSON.parse(body, :symbolize_names => true))
+
 
               controller.send("context=", properties[:headers])
               controller.send("jsonapi_params=", params)
