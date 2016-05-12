@@ -163,7 +163,7 @@ module Ilm
 
             context = properties[:headers]
 
-            puts "\n\n\n--------\nRECEIVED ON #{message_id} --- REPLY TO #{reply_to} WITH CORID #{correlation_id}"
+            puts "\n\n\n--------\nRECEIVED ON #{message_id} --- REPLY TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}"
 
             if correlation_id && Ilm::Rabbiter::Rabbiter.callbacks.has_condition(correlation_id)
               Ilm::Rabbiter::Rabbiter.callbacks.set_response(correlation_id, body)
@@ -177,7 +177,7 @@ module Ilm
 
               rsp = on_response.(properties, body)
 
-              puts "Controller Response #{rsp}\n\n"
+              #puts "Controller Response #{rsp}\n\n"
 
               #when responding it should be asynchronous
               Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.success(rsp), correlation_id, context)
@@ -279,7 +279,7 @@ module Ilm
 
 
         def thread_pool
-          puts "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'] || 5)}"
+          #puts "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'] || 5)}"
           @thread_pool ||= Concurrent::FixedThreadPool.new(Integer(ENV['MAX_THREADS'] || 5))
         end
 
