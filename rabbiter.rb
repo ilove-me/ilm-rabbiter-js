@@ -85,6 +85,7 @@ module Ilm
         end
 
         def has_condition(key)
+          puts "CONDITIONS VARIABLES #{condition_variables_map}"
           condition_variables_map.has_key?(key)
         end
 
@@ -164,15 +165,18 @@ module Ilm
 
             context = properties[:headers]
 
-            puts "\n\n\n--------\nRECEIVED ON #{message_id} --- REPLY TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}"
+            puts "\n\n\n--------\nRECEIVED WITH MESSAGE ID #{message_id} --- REPLY TO #{reply_to || "nowhere"} WITH CORID #{correlation_id}"
 
             if correlation_id && Ilm::Rabbiter::Rabbiter.callbacks.has_condition(correlation_id)
+              puts "HAS CONDITIONS"
+
               Ilm::Rabbiter::Rabbiter.callbacks.set_response(correlation_id, body)
               mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.signal_condition(correlation_id) }
               #Ilm::Rabbiter::Rabbiter.callbacks.event(correlation_id).set
 
               return
             elsif message_id
+              puts "MESSAGE ID RESPONSE"
 
               rsp = on_response.(properties, body)
 
@@ -181,7 +185,9 @@ module Ilm
               #when responding it should be asynchronous
               Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.success(rsp), correlation_id, context)
             else
-             raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
+              puts "ERROR"
+
+              raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
             end
 
 
