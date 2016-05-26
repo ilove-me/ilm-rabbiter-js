@@ -172,9 +172,7 @@ module Ilm
               #Ilm::Rabbiter::Rabbiter.callbacks.event(correlation_id).set
 
               return
-            end
-
-            if message_id
+            elsif message_id
 
               rsp = on_response.(properties, body)
 
@@ -182,6 +180,8 @@ module Ilm
 
               #when responding it should be asynchronous
               Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.success(rsp), correlation_id, context)
+            else
+             raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
             end
 
 
@@ -197,6 +197,7 @@ module Ilm
 
 
         def send_msg(to_queue, message_id, msg, correlation_id = nil, user_id = nil, sync = true)
+          return if to_queue.blank?
 
           send_opts = {
               reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
