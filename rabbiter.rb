@@ -75,6 +75,7 @@ module Ilm
         end
 
         def signal_condition(key)
+
           conditionVariable = condition_variables_map[key]
 
           puts "======== SIGNAL CONDITION #{key}  - #{conditionVariable}"
@@ -214,7 +215,6 @@ module Ilm
           rsp = Ilm::Rabbiter::Rabbiter.connector.exchange.publish(msg.to_s, send_opts)
 
 
-
           if message_id and sync #se tiver um message ID é porque fez um pedido e tem de esperar por ele, dada a natureza sincrona do ruby
             mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.wait_condition(send_opts[:correlation_id], mutex) }
 
@@ -225,7 +225,7 @@ module Ilm
               rsp = Ilm::Rabbiter::Rabbiter.callbacks.get_response(send_opts[:correlation_id])
             else
               #should try again?
-              puts Exception.new("Timeout - waiting for too long for response #{send_opts[:correlation_id]}")
+              raise Exception.new("Timeout - waiting for too long for response #{send_opts[:correlation_id]}")
             end
           end
 
