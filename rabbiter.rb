@@ -37,8 +37,8 @@ module Ilm
 
         def self.error(err)
           return {
-              success: false,
-              error: err
+            success: false,
+            error: err
           }.to_json
         end
       end
@@ -181,7 +181,7 @@ module Ilm
               #when responding it should be asynchronous
               Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.success(rsp), correlation_id, context)
             else
-             raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
+              raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
             end
 
 
@@ -200,14 +200,14 @@ module Ilm
           return if to_queue.blank?
 
           send_opts = {
-              reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
-              message_id: message_id,
-              routing_key: to_queue,
-              correlation_id: correlation_id || "#{rand}",
-              headers: {
-                  user_id: user_id
-              },
-              mandatory: true #returned if no binding found
+            reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
+            message_id: message_id,
+            routing_key: to_queue,
+            correlation_id: correlation_id || "#{rand}",
+            headers: {
+              user_id: user_id
+            },
+            mandatory: true #returned if no binding found
           }
 
           puts "\n\n\n--------\nSENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}"
@@ -240,18 +240,18 @@ module Ilm
         attr_accessor :response_queue_id
 
         @@options = {
-            connection: {
-                user: ENV['RABBIT_USER'],
-                pass: ENV['RABBIT_PASS'],
-                host: ENV['RABBIT_HOST'],
-                port: ENV['RABBIT_PORT']
-            },
-            queue_name: (ENV['RABBIT_QUEUE'] || "") + (ENV['RABBIT_SUFIX'] ? "_" + ENV['RABBIT_SUFIX'].to_s : ""),
-            exchange_name: ENV['RABBIT_EXCHANGE'] || "",
-            prefetch: 0,
-            durable: false,
-            auto_delete: true,
-            async: false
+          connection: {
+            user: ENV['RABBIT_USER'],
+            pass: ENV['RABBIT_PASS'],
+            host: ENV['RABBIT_HOST'],
+            port: ENV['RABBIT_PORT']
+          },
+          queue_name: (ENV['RABBIT_QUEUE'] || "") + (ENV['RABBIT_SUFIX'] ? "_" + ENV['RABBIT_SUFIX'].to_s : ""),
+          exchange_name: ENV['RABBIT_EXCHANGE'] || "",
+          prefetch: 0,
+          durable: false,
+          auto_delete: true,
+          async: false
         }
 
         @@connection = nil
@@ -385,7 +385,7 @@ module Ilm
             end
 
 
-              puts "Rabbiter sucessfully loaded for service #{@@options[:queue_name]}!"
+            puts "Rabbiter sucessfully loaded for service #{@@options[:queue_name]}!"
 
           rescue Bunny::PreconditionFailed => e
             puts "Channel-level exception! Code: #{e.channel_close.reply_code}, message: #{e.channel_close.reply_text}".squish
@@ -404,13 +404,9 @@ module Ilm
           rescue Bunny::TCPConnectionFailed => e
             puts "Rabbiter Server Connection failed"
 
-            if total > 10
-              puts "Exceeded number of Connection retries"
-            else
-              sleep(5)
-              puts "Retrying to connect..."
-              create_connection(total+1)
-            end
+            sleep(5)
+            puts "Retrying to connect..."
+            create_connection(total+1)
           end
         end
 
