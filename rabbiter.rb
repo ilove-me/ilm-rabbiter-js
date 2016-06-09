@@ -27,6 +27,7 @@ module Ilm
 
       class MessageBuilder
 
+
         def self.default(data)
           return {data: data}.to_json
         end
