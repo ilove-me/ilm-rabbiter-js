@@ -316,9 +316,9 @@ module Ilm
           #create connection
           create_connection
 
-
           begin
 
+            puts "RABBITER:: create CHANNEL"
             #open channel
             @@channel = @@connection.create_channel
 
@@ -392,12 +392,15 @@ module Ilm
             puts "Channel-level exception! Code: #{e.channel_close.reply_code}, message: #{e.channel_close.reply_text}".squish
 
             delete_connection
+          rescue Exception => e
+            puts "Error on Rabbiter Init - #{e}"
           end
 
         end
 
         def create_connection(total = 0)
           begin
+            puts "START CONNECTION #{connection_uri}"
             @@connection = Bunny.new(connection_uri)
             @@connection.start
 
@@ -408,6 +411,9 @@ module Ilm
             sleep(5)
             puts "Retrying to connect..."
             create_connection(total+1)
+
+          rescue Exception => e
+            puts "Error on Rabbiter Init - #{e}"
           end
         end
 
