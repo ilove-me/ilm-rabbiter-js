@@ -15,7 +15,6 @@ var PRIORITY = {
 };
 
 
-
 var messageBuilder = {
   default: function (data) {
     return {data: data};
@@ -151,7 +150,7 @@ var connector = function () {
 
   // ================= PUBLIC FUNCTIONS =================
 
-  this.getChannel = function(){
+  this.getChannel = function () {
     return $channel;
   };
 
@@ -161,7 +160,7 @@ var connector = function () {
 
   this.getResponseQueueName = getResponseQueueName;
 
-  this.init = function(opts) {
+  this.init = function (opts) {
 
     if ($exchange) {
       return Promise.resolve(self);
@@ -192,7 +191,7 @@ var connector = function () {
   function amqpServerConnect(url, retries) {
     console.log("SERVER CONNECT")
     return Amqp.connect(url)
-      .then(function (conn){
+      .then(function (conn) {
         if (conn) {
           console.log("Successfully connected to Rabbiter Server");
           return conn;
@@ -200,20 +199,14 @@ var connector = function () {
           Promise.reject("");
         }
       })
-      .catch(function(){
-          console.log("Rabbiter Server Connection failed");
-          if(retries > 10) {
-            console.log("Exceeded number of Connection retries");
-            return Promise.reject("Exceeded number of Connection retries");
-          }else{
-            console.log("Retrying to connect...");
-            return new Promise(function(resolve, reject){
-              setTimeout(function () {
-                resolve(amqpServerConnect(url, (retries || 0) + 1))
-              }, 5000);
+      .catch(function () {
+        console.log("Rabbiter Server Connection failed");
+        return new Promise(function (resolve, reject) {
+          setTimeout(function () {
+            resolve(amqpServerConnect(url, (retries || 0) + 1))
+          }, 5000);
 
-            })
-          }
+        })
       });
   }
 
@@ -385,7 +378,6 @@ connector.getInstance = function () {
 };
 
 
-
 publisher.instance = null;
 
 /**
@@ -400,7 +392,6 @@ publisher.getInstance = function () {
 };
 
 
-
 callbacks.instance = null;
 
 /**
@@ -413,8 +404,6 @@ callbacks.getInstance = function () {
   }
   return this.instance;
 };
-
-
 
 
 module.exports = {
