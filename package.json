@@ -1,8 +1,8 @@
 {
   "name": "lib_rabbiter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lib to connect to docker",
-  "main": "Rabbiter.js",
+  "main": "rabbiter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
