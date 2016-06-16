@@ -318,7 +318,6 @@ module Ilm
 
           begin
 
-            puts "RABBITER:: create CHANNEL"
             #open channel
             @@channel = @@connection.create_channel
 
@@ -400,7 +399,7 @@ module Ilm
 
         def create_connection(total = 0)
           begin
-            puts "START CONNECTION #{connection_uri}"
+
             @@connection = Bunny.new(connection_uri)
             @@connection.start
 
