@@ -222,9 +222,7 @@ module Ilm
             routing_key: to_queue,
             correlation_id: correlation_id || "#{rand}",
             #  headers: context,
-            headers: {
-              user_id: context
-            },
+            headers: context,
             mandatory: true #returned if no binding found
           }
 
@@ -356,7 +354,7 @@ module Ilm
               sleep(5)
               Rails.logger.debug "RETRYING TO SEND MESSAGE"
               send_msg(return_info[:routing_key], properties[:message_id], content,
-                       properties[:correlation_id], properties[:headers] && properties[:headers]["user_id"])
+                       properties[:correlation_id], properties[:headers])
 
             end
 
