@@ -69,7 +69,7 @@ module Ilm
         def wait_condition(key, mutex)
           cv = ConditionVariable.new
 
-          puts "======== WAIT CONDITION #{key} - #{cv}"
+          Rails.logger.debug "======== WAIT CONDITION #{key} - #{cv}"
 
           condition_variables_map[key] = cv
           cv.wait(mutex, 15)
@@ -79,7 +79,7 @@ module Ilm
 
           conditionVariable = condition_variables_map[key]
 
-          puts "======== SIGNAL CONDITION #{key}  - #{conditionVariable}"
+          Rails.logger.debug "======== SIGNAL CONDITION #{key}  - #{conditionVariable}"
 
           conditionVariable.signal
           condition_variables_map.delete(key)
@@ -165,7 +165,7 @@ module Ilm
 
             context = properties[:headers]
 
-            puts "\n\n\n--------\nRECEIVED ON #{message_id} --- REPLY TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}"
+            Rails.logger.debug "\n\n\n--------\nRECEIVED ON #{message_id} --- REPLY TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}"
 
             if correlation_id && Ilm::Rabbiter::Rabbiter.callbacks.has_condition(correlation_id)
               Ilm::Rabbiter::Rabbiter.callbacks.set_response(correlation_id, body)
@@ -177,7 +177,7 @@ module Ilm
 
               rsp = on_response.(properties, body)
 
-              #puts "Controller Response #{rsp}\n\n"
+              #Rails.logger.debug "Controller Response #{rsp}\n\n"
 
               #when responding it should be asynchronous
               Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.success(rsp), correlation_id, context)
@@ -187,8 +187,8 @@ module Ilm
 
 
           rescue StandardError => e
-            puts "\n\nERROR CONTROLLER RESPONSE : #{e}\n\n"
-            puts e.backtrace
+            Rails.logger.debug "\n\nERROR CONTROLLER RESPONSE : #{e}\n\n"
+            Rails.logger.debug e.backtrace
 
             #when responding it should be asynchronous
             Ilm::Rabbiter::Rabbiter.publisher.send_msg(properties[:reply_to], nil, MessageBuilder.error(e.as_json), correlation_id, context)
@@ -211,7 +211,7 @@ module Ilm
             mandatory: true #returned if no binding found
           }
 
-          puts "\n\n\n--------\nSENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}"
+          Rails.logger.debug "\n\n\n--------\nSENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}"
 
           #@@channel.basic_publish(msg.to_s, ENV['RABBIT_EXCHANGE'], msg_id || send_queue, send_opts)
           rsp = Ilm::Rabbiter::Rabbiter.connector.exchange.publish(msg.to_s, send_opts)
@@ -222,7 +222,7 @@ module Ilm
 
             #ev = Ilm::Rabbiter::Rabbiter.callbacks.event(send_opts[:correlation_id]).wait()
             #if ev
-            puts "RESPONSE #{send_opts[:correlation_id]} == #{Ilm::Rabbiter::Rabbiter.callbacks.has_response(send_opts[:correlation_id])}"
+            Rails.logger.debug "RESPONSE #{send_opts[:correlation_id]} == #{Ilm::Rabbiter::Rabbiter.callbacks.has_response(send_opts[:correlation_id])}"
             if Ilm::Rabbiter::Rabbiter.callbacks.has_response(send_opts[:correlation_id])
               rsp = Ilm::Rabbiter::Rabbiter.callbacks.get_response(send_opts[:correlation_id])
             else
@@ -281,7 +281,7 @@ module Ilm
 
 
         def thread_pool
-          #puts "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'] || 5)}"
+          #Rails.logger.debug "Rabbiter Thread Pool SIZE = #{Integer(ENV['MAX_THREADS'] || 5)}"
           @thread_pool ||= Concurrent::FixedThreadPool.new(Integer(ENV['MAX_THREADS'] || 5))
         end
 
@@ -326,10 +326,10 @@ module Ilm
             @@exchange = @@channel.direct(ENV['RABBIT_EXCHANGE'])
 
             @@exchange.on_return do |return_info, properties, content|
-              puts "Got a returned message: #{content} #{properties} #{return_info}"
+              Rails.logger.debug "Got a returned message: #{content} #{properties} #{return_info}"
 
               sleep(5)
-              puts "RETRYING TO SEND MESSAGE"
+              Rails.logger.debug "RETRYING TO SEND MESSAGE"
               send_msg(return_info[:routing_key], properties[:message_id], content,
                        properties[:correlation_id], properties[:headers] && properties[:headers]["user_id"])
 
@@ -354,7 +354,7 @@ module Ilm
 
               #TODO: CHECK IF THE CONTROLLER EXISTS
 
-              puts "Controller Key: #{controller_key}"
+              Rails.logger.debug "Controller Key: #{controller_key}"
               controller = controller_key.classify.safe_constantize.new
 
               params = Ilm::Rabbiter::Rabbiter.aux.convert_hash_keys(JSON.parse(body, :symbolize_names => true))
@@ -385,14 +385,14 @@ module Ilm
             end
 
 
-            puts "Rabbiter sucessfully loaded for service #{@@options[:queue_name]}!"
+            Rails.logger.debug "Rabbiter sucessfully loaded for service #{@@options[:queue_name]}!"
 
           rescue Bunny::PreconditionFailed => e
-            puts "Channel-level exception! Code: #{e.channel_close.reply_code}, message: #{e.channel_close.reply_text}".squish
+            Rails.logger.debug "Channel-level exception! Code: #{e.channel_close.reply_code}, message: #{e.channel_close.reply_text}".squish
 
             delete_connection
           rescue Exception => e
-            puts "Error on Rabbiter Init - #{e}"
+            Rails.logger.debug "Error on Rabbiter Init - #{e}"
           end
 
         end
@@ -403,16 +403,16 @@ module Ilm
             @@connection = Bunny.new(connection_uri)
             @@connection.start
 
-            puts "Successfully connected to Rabbiter Server"
+            Rails.logger.debug "Successfully connected to Rabbiter Server"
           rescue Bunny::TCPConnectionFailed => e
-            puts "Rabbiter Server Connection failed"
+            Rails.logger.debug "Rabbiter Server Connection failed"
 
             sleep(5)
-            puts "Retrying to connect..."
+            Rails.logger.debug "Retrying to connect..."
             create_connection(total+1)
 
           rescue Exception => e
-            puts "Error on Rabbiter Init - #{e}"
+            Rails.logger.debug "Error on Rabbiter Init - #{e}"
           end
         end
 
