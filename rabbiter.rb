@@ -72,7 +72,7 @@ module Ilm
           Rails.logger.debug "======== WAIT CONDITION #{key} - #{cv}"
 
           condition_variables_map[key] = cv
-          cv.wait(mutex, 15)
+          cv.wait(mutex, 5)
         end
 
         def signal_condition(key)
@@ -172,7 +172,7 @@ module Ilm
 
             Rails.logger.debug """
               --------
-              RECEIVED ON #{message_id || "whitout_message_id?"} --- REPLIED TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}
+              RECEIVED TO #{message_id || "whitout_message_id?"} --- REPLIED TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}
 
             """
 
@@ -188,12 +188,10 @@ module Ilm
 
               #Rails.logger.debug "Controller Response #{rsp}\n\n"
 
-              if correlation_id
-                Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), false, correlation_id, context)
-              end
+              Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), false, correlation_id, context)
 
             else
-              raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
+              raise Exception.new("No response type determined for correlation_id=#{correlation_id} or message_id=#{message_id}")
             end
 
 
@@ -222,15 +220,15 @@ module Ilm
             reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
             message_id: message_id,
             routing_key: to_queue,
-            correlation_id: sync && (correlation_id || "#{(rand*10000000000000).to_i}"),
+            correlation_id: correlation_id || "#{(rand*10000000000000).to_i}",
             headers: context,
             mandatory: true #returned if no binding found
           }
 
           Rails.logger.debug """
               --------
-              SENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}
-
+              SENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id || "no action"} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}
+              #{msg}
           """
 
           #@@channel.basic_publish(msg.to_s, ENV['RABBIT_EXCHANGE'], msg_id || send_queue, send_opts)
