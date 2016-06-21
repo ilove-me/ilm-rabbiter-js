@@ -144,14 +144,14 @@ module Ilm
           @mutex ||= Mutex.new
         end
 
-        def on_response=(call)
-          @response_callback = call
+        def on_receive=(call)
+          @receive_callback = call
         end
 
-        def on_response
-          @response_callback
-        end
 
+        def on_receive
+          @receive_callback
+        end
 
         def receive_msg(body, properties)
           #ActionDispatch::Reloader.cleanup!
@@ -170,11 +170,11 @@ module Ilm
             #PUTS SET RAVEN USER_CONTEXT IF RAVEN DEFINED
             Raven.user_context(context) if (!!Raven rescue false)
 
-            Rails.logger.debug "" "
+            Rails.logger.debug """
               --------
-              RECEIVED ON #{message_id || "whitout_message_id?"} --- REPLY TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}
+              RECEIVED ON #{message_id || "whitout_message_id?"} --- REPLIED TO #{reply_to || "nowhere?"} WITH CORID #{correlation_id}
 
-            " ""
+            """
 
             if correlation_id && Ilm::Rabbiter::Rabbiter.callbacks.has_condition(correlation_id)
               Ilm::Rabbiter::Rabbiter.callbacks.set_response(correlation_id, body)
@@ -184,11 +184,13 @@ module Ilm
               return
             elsif message_id
 
-              rsp = on_response.(properties, body)
+              rsp = on_receive.(properties, body)
 
               #Rails.logger.debug "Controller Response #{rsp}\n\n"
 
-              Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), correlation_id, context)
+              if correlation_id
+                Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), false, correlation_id, context)
+              end
 
             else
               raise Exception.new("No response type determined for correlation_id=#{correlation_id} and message_id=#{message_id}")
@@ -204,13 +206,13 @@ module Ilm
             }) if (!!Raven rescue false)
 
             #when responding it should be asynchronous
-            Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.error(e.as_json), correlation_id, context, false)
+            Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.error(e.as_json), false, correlation_id, context)
 
           end
         end
 
 
-        def send_msg(to_queue, message_id, msg, correlation_id = nil, context = nil, sync = true)
+        def send_msg(to_queue, message_id, msg, sync = true, correlation_id = nil, context = nil)
           return if to_queue.blank?
 
           #PUTS SET RAVEN USER_CONTEXT IF RAVEN DEFINED
@@ -220,21 +222,19 @@ module Ilm
             reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
             message_id: message_id,
             routing_key: to_queue,
-            correlation_id: correlation_id || "#{rand}",
-            #  headers: context,
+            correlation_id: sync && (correlation_id || "#{(rand*10000000000000).to_i}"),
             headers: context,
             mandatory: true #returned if no binding found
           }
 
-          Rails.logger.debug "" "
+          Rails.logger.debug """
               --------
               SENDING TO #{send_opts[:routing_key]} WITH ACTION #{message_id} --- REPLY TO #{send_opts[:reply_to]} WITH CORID #{send_opts[:correlation_id]}
 
-          " ""
+          """
 
           #@@channel.basic_publish(msg.to_s, ENV['RABBIT_EXCHANGE'], msg_id || send_queue, send_opts)
           rsp = Ilm::Rabbiter::Rabbiter.connector.exchange.publish(msg.to_s, send_opts)
-
 
           if message_id and sync #se tiver um message ID é porque fez um pedido e tem de esperar por ele, dada a natureza sincrona do ruby
             mutex.synchronize { Ilm::Rabbiter::Rabbiter.callbacks.wait_condition(send_opts[:correlation_id], mutex) }
@@ -353,7 +353,7 @@ module Ilm
 
               sleep(5)
               Rails.logger.debug "RETRYING TO SEND MESSAGE"
-              send_msg(return_info[:routing_key], properties[:message_id], content,
+              send_msg(return_info[:routing_key], properties[:message_id], content, true,
                        properties[:correlation_id], properties[:headers])
 
             end
@@ -366,7 +366,7 @@ module Ilm
             end
 
             #default callback message_id = "controller#action"
-            on_response_callback = -> properties, body do
+            on_receive_callback = -> properties, body do
 
               #call controller by name
               callKey = properties[:message_id].split("#")
@@ -389,7 +389,7 @@ module Ilm
 
             end
 
-            Ilm::Rabbiter::Rabbiter.publisher.on_response = on_response_callback
+            Ilm::Rabbiter::Rabbiter.publisher.on_receive = on_receive_callback
 
             #create queues
             queues_names.each do |queue_name|

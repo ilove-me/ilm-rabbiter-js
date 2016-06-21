@@ -62,7 +62,7 @@ var publisher = function () {
     var responseQueue = messageProperties.replyTo, responseKey = messageProperties.messageId;
 
     if (responseQueue && responseKey) {
-      return this.send(responseQueue, responseKey, messageBuilder.error(err), rabbitMsg.properties.headers);
+      return this.send(responseQueue, responseKey, messageBuilder.error(err), messageproperties.headers);
     }
     return err;
   };
@@ -293,7 +293,7 @@ var connector = function () {
     return Promise.resolve()
       .then(function () {
 
-        console.log("\n\n%s [Received <-] %s %s", $options.name, correlationId);
+        console.log("\n\n%s [Received <-] %s %s", $options.queueName, correlationId || "no correlation id");
 
         //get callback function by message id
         var callbackFunction = callbacks.getInstance().removeSent(correlationId);
