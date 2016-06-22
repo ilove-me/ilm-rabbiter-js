@@ -188,7 +188,10 @@ module Ilm
 
               #Rails.logger.debug "Controller Response #{rsp}\n\n"
 
-              Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), false, correlation_id, context)
+              #send response
+              if correlation_id
+                Ilm::Rabbiter::Rabbiter.publisher.send_msg(reply_to, nil, MessageBuilder.success(rsp), false, correlation_id, context)
+              end
 
             else
               raise Exception.new("No response type determined for correlation_id=#{correlation_id} or message_id=#{message_id}")
@@ -197,7 +200,7 @@ module Ilm
 
           rescue StandardError => e
             Rails.logger.debug "\n\nERROR CONTROLLER RESPONSE : #{e}\n\n"
-            Rails.logger.debug e.backtrace
+            Rails.logger.debug e.backtrace.join('\n')
 
             Raven.capture_exception(e, {
               :extra => e.as_json
@@ -217,11 +220,11 @@ module Ilm
           Raven.user_context(context) if (!!Raven rescue false)
 
           send_opts = {
-            reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,
-            message_id: message_id,
-            routing_key: to_queue,
-            correlation_id: correlation_id || "#{(rand*10000000000000).to_i}",
-            headers: context,
+            reply_to: Ilm::Rabbiter::Rabbiter.connector.response_queue_name,  # reply queue
+            message_id: message_id,  # action to call in service
+            routing_key: to_queue,  # queue of the service we want to call
+            correlation_id: correlation_id || (sync && "#{(rand*10000000000000).to_i}"),  # id of message to correlate the response if it is to sync
+            headers: context, # context information related to this request, such as current professional and user ids.
             mandatory: true #returned if no binding found
           }
 
