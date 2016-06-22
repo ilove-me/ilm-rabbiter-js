@@ -62,7 +62,7 @@ var publisher = function () {
     var responseQueue = messageProperties.replyTo, responseKey = messageProperties.messageId;
 
     if (responseQueue && responseKey) {
-      return this.send(responseQueue, responseKey, messageBuilder.error(err), messageproperties.headers);
+      return this.send(responseQueue, responseKey, messageBuilder.error(err), messageProperties.headers);
     }
     return err;
   };
