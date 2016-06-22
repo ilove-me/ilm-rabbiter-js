@@ -57,12 +57,14 @@ var callbacks = function () {
 
 var publisher = function () {
 
+  var self = this;
+
   this.sendError = function (err, messageProperties) {
 
     var responseQueue = messageProperties.replyTo, responseKey = messageProperties.messageId;
 
     if (responseQueue && responseKey) {
-      return this.send(responseQueue, responseKey, messageBuilder.error(err), messageProperties.headers);
+      return self.send(responseQueue, responseKey, messageBuilder.error(err), messageProperties.headers);
     }
     return err;
   };
