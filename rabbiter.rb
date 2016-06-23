@@ -271,7 +271,7 @@ module Ilm
             host: ENV['RABBIT_HOST'],
             port: ENV['RABBIT_PORT']
           },
-          queue_name: (ENV['SERVICE_NAME'] || "") + (ENV['RABBIT_SUFIX'] ? "_" + ENV['RABBIT_SUFIX'].to_s : ""),
+          queue_name: (ENV['RABBIT_QUEUE'] || ENV['SERVICE_NAME'] || "") + (ENV['RABBIT_SUFIX'] ? "_" + ENV['RABBIT_SUFIX'].to_s : ""),
           exchange_name: ENV['RABBIT_EXCHANGE'] || "",
           prefetch: 0,
           durable: false,
