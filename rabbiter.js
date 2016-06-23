@@ -1,10 +1,10 @@
+'use strict';
+
 var util = require('util');
 var Amqp = require('amqplib');
 var Promise = require("bluebird");
 var _ = require('lodash');
-var VError = require("verror");
 
-var DEBUG_STRING_LIMIT = 60;
 
 // The normal priority is on the middle, to ensure one can increase/decrease
 // priorities in future scenarios
@@ -31,7 +31,7 @@ var messageBuilder = {
   }
 };
 
-var callbacks = function () {
+var Callbacks = function () {
   var $sentCallbacksMap = {}, $receivedCallbacksMap = {};
 
   this.addSent = function (key, callback) {
@@ -55,7 +55,7 @@ var callbacks = function () {
 };
 
 
-var publisher = function () {
+var Publisher = function () {
 
   var self = this;
 
@@ -64,7 +64,7 @@ var publisher = function () {
     var responseQueue = messageProperties.replyTo, responseKey = messageProperties.messageId;
 
     if (responseQueue && responseKey) {
-      return self.send(responseQueue, responseKey, messageBuilder.error(err), messageProperties.headers);
+      return self.send(responseQueue, responseKey, messageBuilder.error(err), null, messageProperties.headers);
     }
     return err;
   };
@@ -74,18 +74,29 @@ var publisher = function () {
   this.send = function (toQueue, messageId, msg, correlationId, contextInfo) {
 
     var sendOpts = {
-      replyTo: connector.getInstance().getResponseQueueName(),
+      replyTo: Connector.getInstance().getResponseQueueName(),
       messageId: messageId,
       routingKey: toQueue,
-      correlationId: correlationId || Math.random().toString(36).slice(2),
+      correlationId: (correlationId && correlationId.toString()) || Math.random().toString(36).slice(2),
       headers: contextInfo
     };
 
     return new Promise(function (resolve, reject) { //resolve this send only when there is a response
 
+      //add timeout response
+      var responseTimeout = sendOpts.correlationId && setTimeout(function () {
+          Callbacks.getInstance().removeSent(sendOpts.correlationId);
+
+          reject(new Error("Timeout - waiting for too long for response " + sendOpts.correlationId));
+        }, 7000);
+
+      var bufferMsg = JSON.stringify(msg);
+
       var replyWrapper = function (resultData) {
         return Promise.resolve(resultData)
           .then(function (result) { //prepare response
+
+            clearTimeout(responseTimeout);
 
             if (result.success) {
               resolve(result.data); // => ALREADY TRANSFORMED INTO JSON API
@@ -96,7 +107,8 @@ var publisher = function () {
           });
       };
 
-      callbacks.getInstance().addSent(sendOpts.correlationId, replyWrapper);
+      Callbacks.getInstance().addSent(sendOpts.correlationId, replyWrapper);
+
 
 
       // debug stuff
@@ -116,8 +128,8 @@ var publisher = function () {
        var message = _.zipObject([messageId], [msg]);
        */
 
-      var bufferMsg = JSON.stringify(msg);
-      return connector.getInstance().getChannel().sendToQueue(toQueue, new Buffer(bufferMsg), sendOpts);
+
+      return Connector.getInstance().getChannel().sendToQueue(toQueue, new Buffer(bufferMsg), sendOpts);
 
     });
   };
@@ -126,29 +138,26 @@ var publisher = function () {
 };
 
 
-var connector = function () {
+var Connector = function () {
 
   // ----------------- CLASS VARIABLES -----------------
-  var self = this;
-
-  var $options = {
-    connection: {
-      user: process.env.RABBIT_USER,
-      pass: process.env.RABBIT_PASS,
-      host: process.env.RABBIT_HOST,
-      port: process.env.RABBIT_PORT
+  var self = this,
+    $options = {
+      connection: {
+        user: process.env.RABBIT_USER,
+        pass: process.env.RABBIT_PASS,
+        host: process.env.RABBIT_HOST,
+        port: process.env.RABBIT_PORT
+      },
+      queueName: process.env.RABBIT_QUEUE_TYPE || "all",
+      exchangeName: process.env.RABBIT_EXCHANGE || "",
+      prefetch: 0,
+      durable: false,
+      autoDelete: true
     },
-    queueName: process.env.RABBIT_QUEUE_TYPE || "all",
-    exchangeName: process.env.RABBIT_EXCHANGE || "",
-    prefetch: 0,
-    durable: false,
-    autoDelete: true
-  };
-
-
-  var $exchange = null, $channel = null;
-
-  var $randomNumber = Math.round(Math.random() * 10000000000);
+    $exchange = null,
+    $channel = null,
+    $randomNumber = Math.round(Math.random() * 10000000000);
 
   // ================= PUBLIC FUNCTIONS =================
 
@@ -191,24 +200,25 @@ var connector = function () {
   }
 
   function amqpServerConnect(url, retries) {
-    console.log("SERVER CONNECT")
+    console.log("SERVER CONNECT");
     return Amqp.connect(url)
       .then(function (conn) {
         if (conn) {
           console.log("Successfully connected to Rabbiter Server");
           return conn;
-        } else {
-          Promise.reject("");
         }
+
+        Promise.reject("");
+
       })
       .catch(function () {
         console.log("Rabbiter Server Connection failed");
-        return new Promise(function (resolve, reject) {
+        return new Promise(function (resolve) {
           setTimeout(function () {
-            resolve(amqpServerConnect(url, (retries || 0) + 1))
+            resolve(amqpServerConnect(url, (retries || 0) + 1));
           }, 5000);
 
-        })
+        });
       });
   }
 
@@ -227,31 +237,30 @@ var connector = function () {
       .then(function () {
 
         var normalQueue = {
-          name: getQueueName(PRIORITY.NORMAL),
-          priority: PRIORITY.NORMAL
-        };
-        var highQueue = {
-          name: getQueueName(PRIORITY.HIGH),
-          priority: PRIORITY.HIGH
-        };
-        var lowQueue = {
-          name: getQueueName(PRIORITY.LOW),
-          priority: PRIORITY.LOW
-        };
-
-        var responseQueue = {
-          name: getResponseQueueName(),
-          priority: PRIORITY.HIGH
-        };
+            name: getQueueName(PRIORITY.NORMAL),
+            priority: PRIORITY.NORMAL
+          },
+          highQueue = {
+            name: getQueueName(PRIORITY.HIGH),
+            priority: PRIORITY.HIGH
+          },
+          lowQueue = {
+            name: getQueueName(PRIORITY.LOW),
+            priority: PRIORITY.LOW
+          },
+          responseQueue = {
+            name: getResponseQueueName(),
+            priority: PRIORITY.HIGH
+          },
+          queues = [normalQueue, highQueue, lowQueue, responseQueue];
 
         // Check which priority queues need to be created => NOT USED FOR NOW
         // THIS IS COOL TO USE WHEN WE NEED DIFFERENT PRIORITY QUEUES
-        var queues = [normalQueue, highQueue, lowQueue, responseQueue];
 
 
         return Promise.map(queues, function (queue) {
-          var name = queue.name;
-          var priority = queue.priority;
+          var name = queue.name, priority = queue.priority;
+
           return [
             $channel.assertQueue(name, {
               durable: $options.durable,
@@ -265,7 +274,7 @@ var connector = function () {
               .then(function () {
                 return $channel.assertExchange($options.exchangeName, 'direct', {
                   durable: $options.durable
-                })
+                });
               })
               .then(function () {
                 return $channel.bindQueue(name, $options.exchangeName, name);
@@ -283,14 +292,11 @@ var connector = function () {
       return Promise.reject(new Error("Rabbit Message is Null"));
     }
 
-    var messageId = rabbitMsg.properties.messageId;
-    var correlationId = rabbitMsg.properties.correlationId;
-    var replyTo = rabbitMsg.properties.replyTo;
-
-    var userId = rabbitMsg.properties.headers && rabbitMsg.properties.headers.userId;
-
-
-    var sendErrorPartial = _.partialRight(publisher.getInstance().sendError, rabbitMsg.properties);
+    var messageId = rabbitMsg.properties.messageId,
+      correlationId = rabbitMsg.properties.correlationId,
+      replyTo = rabbitMsg.properties.replyTo,
+      context = rabbitMsg.properties.headers && {userId: rabbitMsg.properties.headers.userId}, //send just the userId
+      sendErrorPartial = _.partialRight(Publisher.getInstance().sendError, rabbitMsg.properties);
 
     return Promise.resolve()
       .then(function () {
@@ -298,15 +304,16 @@ var connector = function () {
         console.log("\n\n%s [Received <-] %s %s", $options.queueName, correlationId || "no correlation id");
 
         //get callback function by message id
-        var callbackFunction = callbacks.getInstance().removeSent(correlationId);
+        var callbackFunction = Callbacks.getInstance().removeSent(correlationId);
 
 
         if (!callbackFunction) {
-          callbackFunction = callbacks.getInstance().removeMessage(messageId);
+          callbackFunction = Callbacks.getInstance().removeMessage(messageId);
         }
 
         if (!callbackFunction) {
-          return Promise.reject(new VError("Non existing callback for keys: %s | %s", messageId, correlationId));
+          //return Promise.reject(new VError("Non existing callback for keys: %s | %s", messageId, correlationId));
+          return Promise.resolve(false);
         }
 
 
@@ -316,7 +323,7 @@ var connector = function () {
 
             // send the response to a given queue
             if (replyTo && messageId) {
-              return publisher.getInstance().send(replyTo, null, messageBuilder.success(rsp), correlationId, userId);
+              return Publisher.getInstance().send(replyTo, null, messageBuilder.success(rsp), correlationId, context);
             }
           })
           .catch(sendErrorPartial);
@@ -342,7 +349,7 @@ var connector = function () {
 
       })
       .catch(function (err) {
-        var error = new VError(err, "CONNECTOR - CallbackDispatcher ");
+        var error = new Error(err, "CONNECTOR - CallbackDispatcher ");
         console.error(error);
         return sendErrorPartial(error);
       })
@@ -356,9 +363,6 @@ var connector = function () {
   }
 
 
-  if (connector.caller != connector.getInstance) {
-    throw new Error("This object cannot be instanciated");
-  }
 
 };
 
@@ -366,43 +370,43 @@ var connector = function () {
 /* ************************************************************************
  SINGLETON CLASS DEFINITION
  ************************************************************************ */
-connector.instance = null;
+Connector.instance = null;
 
 /**
  * Singleton getInstance definition
  * @return singleton class
  */
-connector.getInstance = function () {
+Connector.getInstance = function () {
   if (this.instance === null) {
-    this.instance = new connector();
+    this.instance = new Connector();
   }
   return this.instance;
 };
 
 
-publisher.instance = null;
+Publisher.instance = null;
 
 /**
  * Singleton getInstance definition
  * @return singleton class
  */
-publisher.getInstance = function () {
+Publisher.getInstance = function () {
   if (this.instance === null) {
-    this.instance = new publisher();
+    this.instance = new Publisher();
   }
   return this.instance;
 };
 
 
-callbacks.instance = null;
+Callbacks.instance = null;
 
 /**
  * Singleton getInstance definition
  * @return singleton class
  */
-callbacks.getInstance = function () {
+Callbacks.getInstance = function () {
   if (this.instance === null) {
-    this.instance = new callbacks();
+    this.instance = new Callbacks();
   }
   return this.instance;
 };
@@ -410,9 +414,9 @@ callbacks.getInstance = function () {
 
 module.exports = {
 
-  Connector: connector.getInstance(),
-  Publisher: publisher.getInstance(),
-  Callbacks: callbacks.getInstance(),
+  Connector: Connector.getInstance(),
+  Publisher: Publisher.getInstance(),
+  Callbacks: Callbacks.getInstance(),
   MessageBuilder: messageBuilder
 };
 
