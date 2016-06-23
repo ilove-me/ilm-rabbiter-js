@@ -1,15 +1,15 @@
 {
-  "name": "lib_rabbiter",
+  "name": "rabbiter",
   "version": "0.3.4",
   "description": "Lib to connect to docker",
-  "main": "rabbiter.js",
+  "main": "clients/javascript/rabbiter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://olympus.ilove.me/iloveme/pushnotifier.git"
+    "url": "https://olympus.ilove.me/iloveme/lib_rabbiter.git"
   },
   "author": "ilove.me",
   "dependencies": {
