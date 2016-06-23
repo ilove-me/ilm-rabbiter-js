@@ -15,7 +15,6 @@
   "dependencies": {
     "amqplib": "^0.4.0",
     "bluebird": "^3.1.5",
-    "lodash": "^4.0.1",
-    "verror": "^1.6.0"
+    "lodash": "^4.0.1"
   }
 }
