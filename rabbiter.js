@@ -1,8 +1,5 @@
-'use strict';
-
-var util = require('util');
 var Amqp = require('amqplib');
-var Promise = require("bluebird");
+var Promise = require('bluebird');
 var _ = require('lodash');
 
 
@@ -87,7 +84,7 @@ var Publisher = function () {
       var responseTimeout = sendOpts.correlationId && setTimeout(function () {
           Callbacks.getInstance().removeSent(sendOpts.correlationId);
 
-          reject(new Error("Timeout - waiting for too long for response " + sendOpts.correlationId));
+          reject(new Error('Timeout - waiting for too long for response ' + sendOpts.correlationId));
         }, 7000);
 
       var bufferMsg = JSON.stringify(msg);
@@ -112,7 +109,7 @@ var Publisher = function () {
 
 
       // debug stuff
-      console.log("[Sent ->] %s to %s - %s", sendOpts.correlationId, sendOpts.routingKey, sendOpts.messageId);
+      console.log('[Sent ->] %s to %s - %s', sendOpts.correlationId, sendOpts.routingKey, sendOpts.messageId);
 
 
       //$channel.bindQueue(queueName, $options.exchangeName, msgId);
@@ -149,8 +146,8 @@ var Connector = function () {
         host: process.env.RABBIT_HOST,
         port: process.env.RABBIT_PORT
       },
-      queueName: process.env.RABBIT_QUEUE_TYPE || "all",
-      exchangeName: process.env.RABBIT_EXCHANGE || "",
+      queueName: process.env.RABBIT_QUEUE_TYPE || 'all',
+      exchangeName: process.env.RABBIT_EXCHANGE || '',
       prefetch: 0,
       durable: false,
       autoDelete: true
@@ -187,32 +184,32 @@ var Connector = function () {
 
   function getConnectionUri() {
     var auth = $options.connection;
-    return 'amqp://' + encodeURIComponent(auth.user) + ':' + encodeURIComponent(auth.pass) + '@' + auth.host + ":" + auth.port;
+    return 'amqp://' + encodeURIComponent(auth.user) + ':' + encodeURIComponent(auth.pass) + '@' + auth.host + ':' + auth.port;
   }
 
 
   function getQueueName(priority) {
-    return $options.name + "_" + {5: "normal", 2: "low", 8: "high"}[priority];
+    return $options.name + '_' + {5: 'normal', 2: 'low', 8: 'high'}[priority];
   }
 
   function getResponseQueueName() {
-    return $options.name + "_" + $randomNumber.toString();
+    return $options.name + '_' + $randomNumber.toString();
   }
 
   function amqpServerConnect(url, retries) {
-    console.log("SERVER CONNECT");
+    console.log('SERVER CONNECT');
     return Amqp.connect(url)
       .then(function (conn) {
         if (conn) {
-          console.log("Successfully connected to Rabbiter Server");
+          console.log('Successfully connected to Rabbiter Server');
           return conn;
         }
 
-        Promise.reject("");
+        Promise.reject('');
 
       })
       .catch(function () {
-        console.log("Rabbiter Server Connection failed");
+        console.log('Rabbiter Server Connection failed');
         return new Promise(function (resolve) {
           setTimeout(function () {
             resolve(amqpServerConnect(url, (retries || 0) + 1));
@@ -289,7 +286,7 @@ var Connector = function () {
 
   function receiverDispatcher(rabbitMsg) {
     if (!rabbitMsg) {
-      return Promise.reject(new Error("Rabbit Message is Null"));
+      return Promise.reject(new Error('Rabbit Message is Null'));
     }
 
     var messageId = rabbitMsg.properties.messageId,
@@ -301,7 +298,7 @@ var Connector = function () {
     return Promise.resolve()
       .then(function () {
 
-        console.log("\n\n%s [Received <-] %s %s", $options.queueName, correlationId || "no correlation id");
+        console.log('\n\n%s [Received <-] %s %s', $options.queueName, correlationId || 'no correlation id');
 
         //get callback function by message id
         var callbackFunction = Callbacks.getInstance().removeSent(correlationId);
@@ -349,7 +346,7 @@ var Connector = function () {
 
       })
       .catch(function (err) {
-        var error = new Error(err, "CONNECTOR - CallbackDispatcher ");
+        var error = new Error(err, 'CONNECTOR - CallbackDispatcher ');
         console.error(error);
         return sendErrorPartial(error);
       })
