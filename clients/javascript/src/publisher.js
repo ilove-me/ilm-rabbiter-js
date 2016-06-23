@@ -4,7 +4,7 @@ var Callbacks = require('./callbacks.js');
 
 var logger = require('ilm-node-logger');
 var Promise = require('bluebird');
-var _ = require('lodash');
+// var _ = require('lodash');
 
 
 let publisherSingleton = Symbol();
@@ -16,7 +16,7 @@ class Publisher {
     this.messageBuilder = MessageBuilder.create();
 
     if (enforcer !== publisherEnforcer) {
-      throw "Cannot construct singleton"
+      throw 'Cannot construct singleton';
     }
 
     //this.redis = nil;
@@ -45,9 +45,6 @@ class Publisher {
   }
 
   respondSuccess(msg, messageProperties) {
-
-    var self = this;
-
     var responseQueue = messageProperties.replyTo,
       responseKey = messageProperties.messageId,
       responseId = messageProperties.correlationId,
@@ -63,7 +60,9 @@ class Publisher {
 
 
   send(toQueue, messageId, msg, waitResponse, correlationId, contextInfo) {
-    if (typeof waitResponse === 'undefined') waitResponse = true;
+    if (typeof waitResponse === 'undefined') {
+      waitResponse = true;
+    }
 
     var sendOpts = {
       replyTo: Connector.getResponseQueueName(),
@@ -102,7 +101,7 @@ class Publisher {
       Callbacks.addSent(sendOpts.correlationId, replyWrapper);
 
       // debug stuff
-      console.log('[Sent ->] %s to %s - %s', sendOpts.correlationId || "no response required", sendOpts.routingKey, sendOpts.messageId);
+      logger.info('[Sent ->] %s to %s - %s', sendOpts.correlationId || 'no response required', sendOpts.routingKey, sendOpts.messageId);
 
 
       //$channel.bindQueue(queueName, $options.exchangeName, msgId);
@@ -130,18 +129,6 @@ class Publisher {
     }
     return this[publisherSingleton];
   }
-
-  /* log() {
-   let args = Array.prototype.slice.call( arguments );
-   args.unshift(`${this.id} - `);
-   if(this.subscriptions){
-   args.push('subs: ');
-   args.push(JSON.stringify(this.subscriptions));
-   }
-
-   logger.info(args.join(' '));
-   }
-   */
 }
 
 module.exports = Publisher.instance;
