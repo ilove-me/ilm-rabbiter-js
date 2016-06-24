@@ -1,5 +1,5 @@
 
-var logger = require('ilm-node-logger');
+//var logger = require('ilm-node-logger');
 
 let callbacksSingleton = Symbol();
 let callbacksEnforcer = Symbol();
@@ -10,7 +10,7 @@ class Callbacks {
     this.receivedCallbacksMap = {};
 
     if (enforcer !== callbacksEnforcer) {
-      throw "Cannot construct singleton"
+      throw 'Cannot construct singleton';
     }
 
     this.init();

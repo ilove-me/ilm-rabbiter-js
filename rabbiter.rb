@@ -352,10 +352,10 @@ module Ilm
             @@exchange.on_return do |return_info, properties, content|
               Rails.logger.debug "Got a returned message: #{content} #{properties} #{return_info}"
 
-              sleep(5)
-              Rails.logger.debug "RETRYING TO SEND MESSAGE"
-              send_msg(return_info[:routing_key], properties[:message_id], content, true,
-                       properties[:correlation_id], properties[:headers])
+              #sleep(5)
+              #Rails.logger.debug "RETRYING TO SEND MESSAGE"
+              #Ilm::Rabbiter::Rabbiter.publisher.send_msg(return_info[:routing_key], properties[:message_id], content, true,
+              #         properties[:correlation_id], properties[:headers])
 
             end
 

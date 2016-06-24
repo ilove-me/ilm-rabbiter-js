@@ -1,10 +1,10 @@
 var MessageBuilder = require('./messageBuilder.js');
 var Connector = require('./connector.js');
 var Callbacks = require('./callbacks.js');
+var RabbiterError = require('./rabbiterError.js');
 
 var logger = require('ilm-node-logger');
-var Promise = require('bluebird');
-var _ = require('lodash');
+var PromiseBlue = require('bluebird');
 
 
 let publisherSingleton = Symbol();
@@ -16,7 +16,7 @@ class Publisher {
     this.messageBuilder = MessageBuilder.create();
 
     if (enforcer !== publisherEnforcer) {
-      throw "Cannot construct singleton"
+      throw 'Cannot construct singleton';
     }
 
     //this.redis = nil;
@@ -30,11 +30,9 @@ class Publisher {
   }
 
   respondError(err, messageProperties) {
-    this.messageBuilder = require('./messageBuilder.js').create();
-
 
     var responseQueue = messageProperties.replyTo,
-      responseKey = messageProperties.correlationId,
+      responseKey = messageProperties.messageId,
       responseId = messageProperties.correlationId,
       responseContext = messageProperties.headers;
 
@@ -44,9 +42,8 @@ class Publisher {
     return false;
   }
 
-  respondSuccess(msg, messageProperties) {
 
-    var self = this;
+  respondSuccess(msg, messageProperties) {
 
     var responseQueue = messageProperties.replyTo,
       responseKey = messageProperties.messageId,
@@ -63,7 +60,7 @@ class Publisher {
 
 
   send(toQueue, messageId, msg, waitResponse, correlationId, contextInfo) {
-    if (typeof waitResponse === 'undefined') waitResponse = true;
+    if (typeof waitResponse === 'undefined') {waitResponse = true;}
 
     var sendOpts = {
       replyTo: Connector.getResponseQueueName(),
@@ -73,36 +70,39 @@ class Publisher {
       headers: contextInfo
     };
 
-    return new Promise(function (resolve, reject) { //resolve this send only when there is a response
-
-      //add timeout response
-      var responseTimeout = sendOpts.correlationId && setTimeout(function () {
-          Callbacks.removeSent(sendOpts.correlationId);
-
-          reject(new Error('Timeout - waiting for too long for response ' + sendOpts.correlationId));
-        }, 7000);
+    return new PromiseBlue(function (resolve, reject) { //resolve this send only when there is a response
 
       var bufferMsg = JSON.stringify(msg);
 
-      var replyWrapper = function (resultData) {
-        return Promise.resolve(resultData)
-          .then(function (result) { //prepare response
+      //add timeout response if it is to wait for one
+      if(waitResponse){
 
-            clearTimeout(responseTimeout);
+        var responseTimeout = sendOpts.correlationId && setTimeout(function () {
+            Callbacks.removeSent(sendOpts.correlationId);
 
-            if (result.success) {
-              resolve(result.data); // => ALREADY TRANSFORMED INTO JSON API
-            } else {
-              // Pass the remaining error properties to the caller
-              reject(result.error); // => ALREADY TRANSFORMED INTO JSON API
-            }
-          });
-      };
+            reject(RabbiterError.create('Timeout - waiting for too long for response ' + sendOpts.correlationId));
+          }, 7000);
 
-      Callbacks.addSent(sendOpts.correlationId, replyWrapper);
 
+        var replyWrapper = function (resultData) {
+          return PromiseBlue.resolve(resultData)
+            .then(function (result) { //prepare response
+
+              clearTimeout(responseTimeout);
+
+              if (result.success) {
+                resolve(result.data); // => ALREADY TRANSFORMED INTO JSON API
+              } else {
+                // Pass the remaining error properties to the caller
+                reject(result.error); // => ALREADY TRANSFORMED INTO JSON API
+              }
+            });
+        };
+
+        Callbacks.addSent(sendOpts.correlationId, replyWrapper);
+      }
       // debug stuff
-      console.log('[Sent ->] %s to %s - %s', sendOpts.correlationId || "no response required", sendOpts.routingKey, sendOpts.messageId);
+      logger.info('[Sent ->] %s to %s - %s', sendOpts.correlationId || 'no response required', sendOpts.routingKey, sendOpts.messageId);
 
 
       //$channel.bindQueue(queueName, $options.exchangeName, msgId);

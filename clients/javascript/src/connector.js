@@ -1,8 +1,10 @@
 
+var RabbiterError = require('./rabbiterError.js');
+
 var logger = require('ilm-node-logger');
 var Amqp = require('amqplib');
-var Promise = require('bluebird');
 var _ = require('lodash');
+var PromiseBlue = require('bluebird');
 
 var Publisher = null; //postpone this to connection create
 var Callbacks = null;
@@ -40,7 +42,7 @@ class Connector {
     this.randomNumber = Math.round(Math.random() * 10000000000);
 
     if (enforcer !== connectorEnforcer) {
-      throw "Cannot construct singleton"
+      throw 'Cannot construct singleton';
     }
 
     this.init();
@@ -71,20 +73,20 @@ class Connector {
 
     var self = this;
 
-    console.log('Connecting to RabbitMQ Server');
+    logger.info('Connecting to RabbitMQ Server');
     return Amqp.connect(url)
       .then(function (conn) {
         if (conn) {
-          console.log('Successfully connected to RabbitMQ Server');
+          logger.info('Successfully connected to RabbitMQ Server');
           return conn;
         }
 
-        Promise.reject('');
+        PromiseBlue.reject('');
 
       })
       .catch(function () {
-        console.log('RabbitMQ Server Connection failed');
-        return new Promise(function (resolve) {
+        logger.info('RabbitMQ Server Connection failed');
+        return new PromiseBlue(function (resolve) {
           setTimeout(function () {
             resolve(self.amqpServerConnect(url, (retries || 0) + 1));
           }, 5000);
@@ -97,7 +99,7 @@ class Connector {
     var self = this;
 
     if (this.exchange) {
-      return Promise.resolve(self);
+      return PromiseBlue.resolve(self);
     }
 
     Publisher = require('./publisher.js');
@@ -139,7 +141,7 @@ class Connector {
         // THIS IS COOL TO USE WHEN WE NEED DIFFERENT PRIORITY QUEUES
 
 
-        return Promise.map(queues, function (queue) {
+        return PromiseBlue.map(queues, function (queue) {
           var name = queue.name, priority = queue.priority;
 
           return [
@@ -147,11 +149,11 @@ class Connector {
               durable: self.options.durable,
               autoDelete: self.options.autoDelete
             }),
-            self.channel.consume(name, _.partialRight(self.receiverDispatcher, self), { //set the queue consumer
+            self.channel.consume(name, _.partialRight(self.receiverDispatcher.bind(self)), { //set the queue consumer
               noAck: false,
               priority: priority
             }),
-            Promise.resolve() //bind the exchange
+            PromiseBlue.resolve() //bind the exchange
               .then(function () {
                 return self.channel.assertExchange(self.options.exchangeName, 'direct', {
                   durable: self.options.durable
@@ -168,22 +170,20 @@ class Connector {
   }
 
 
-  receiverDispatcher(rabbitMsg, connectorReference) {
+  receiverDispatcher(rabbitMsg) {
 
     if (!rabbitMsg) {
-      return Promise.reject(new Error('Rabbit Message is Null'));
+      return PromiseBlue.reject(RabbiterError.create('Rabbit Message is Null'));
     }
 
+    var messageProperties = rabbitMsg.properties,
+      messageId = messageProperties.messageId,
+      correlationId = messageProperties.correlationId;
 
-    var messageId = rabbitMsg.properties.messageId,
-      correlationId = rabbitMsg.properties.correlationId,
-      respondErrorPartial = _.partialRight(Publisher.respondError, rabbitMsg.properties),
-      respondSuccessPartial = _.partialRight(Publisher.respondSuccess, rabbitMsg.properties);
-
-    return Promise.bind(connectorReference || this)
+    return PromiseBlue.bind(this)
       .then(function () {
 
-        console.log('\n\n%s [Received <-] %s %s', this.options.queueName, correlationId || 'no correlation id');
+        logger.info('\n\n%s [Received <-] %s %s', this.options.queueName, correlationId || 'no correlation id');
 
         //get callback function by message id
         var callbackFunction = Callbacks.removeSent(correlationId);
@@ -195,14 +195,18 @@ class Connector {
 
         if (!callbackFunction) {
           //return Promise.reject(new VError("Non existing callback for keys: %s | %s", messageId, correlationId));
-          return Promise.resolve(false);
+          return PromiseBlue.resolve(false);
         }
 
 
         //execute callback and send response if there is a queue and id to respond to
-        return Promise.resolve(callbackFunction(JSON.parse(rabbitMsg.content)))
-          .then(respondSuccessPartial)
-          .catch(respondErrorPartial);
+        return PromiseBlue.resolve(callbackFunction(JSON.parse(rabbitMsg.content)))
+          .then(function(msg){
+            return Publisher.respondSuccess(msg, messageProperties);
+          })
+          .catch(function(err){
+            return Publisher.respondError(err, messageProperties);
+          });
 
         /*
          NEWRELIC STUFF
@@ -225,8 +229,7 @@ class Connector {
 
       })
       .catch(function (err) {
-        var error = new Error(err, 'CONNECTOR - CallbackDispatcher ');
-        respondErrorPartial(error);
+          return Publisher.respondError(RabbiterError.create('RABBITER CONNECTOR - CallbackDispatcher :' + err.message), messageProperties);
       })
       .finally(function () {
         // acknowledge the message

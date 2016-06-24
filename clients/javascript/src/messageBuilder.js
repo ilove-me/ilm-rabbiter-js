@@ -1,5 +1,5 @@
 
-var logger = require('ilm-node-logger');
+//var logger = require('ilm-node-logger');
 
 class MessageBuilder {
   constructor() {
@@ -11,13 +11,13 @@ class MessageBuilder {
 
   }
 
-  default(data) {
+  normal(data) {
     return {data: data};
-  };
+  }
 
   success(data) {
     return {success: true, data: data};
-  };
+  }
 
   error(err) {
     return {
