@@ -1,4 +1,5 @@
 rabbiter.rb
 .jshintrc
+.eslintrc.json
 .git*
 *.sublime-*

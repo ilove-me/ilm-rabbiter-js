@@ -5,6 +5,7 @@ var RabbiterError = require('./rabbiterError.js');
 
 var logger = require('ilm-node-logger');
 var PromiseBlue = require('bluebird');
+// var _ = require('lodash');
 
 
 let publisherSingleton = Symbol();
@@ -60,7 +61,9 @@ class Publisher {
 
 
   send(toQueue, messageId, msg, waitResponse, correlationId, contextInfo) {
-    if (typeof waitResponse === 'undefined') {waitResponse = true;}
+    if (typeof waitResponse === 'undefined') {
+      waitResponse = true;
+    }
 
     var sendOpts = {
       replyTo: Connector.getResponseQueueName(),
@@ -130,18 +133,6 @@ class Publisher {
     }
     return this[publisherSingleton];
   }
-
-  /* log() {
-   let args = Array.prototype.slice.call( arguments );
-   args.unshift(`${this.id} - `);
-   if(this.subscriptions){
-   args.push('subs: ');
-   args.push(JSON.stringify(this.subscriptions));
-   }
-
-   logger.info(args.join(' '));
-   }
-   */
 }
 
 module.exports = Publisher.instance;
