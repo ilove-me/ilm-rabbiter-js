@@ -1,6 +1,6 @@
 {
   "name": "rabbiter",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Lib to connect to docker",
   "main": "clients/javascript/rabbiter.js",
   "scripts": {
