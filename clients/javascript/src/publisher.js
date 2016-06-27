@@ -37,7 +37,7 @@ class Publisher {
       responseId = messageProperties.correlationId,
       responseContext = messageProperties.headers;
 
-    if (responseQueue && responseKey) {
+    if (responseQueue && responseId) {
       return this.send(responseQueue, null, this.messageBuilder.error(err), false, responseId, responseContext);
     }
     return false;
@@ -52,7 +52,7 @@ class Publisher {
       responseContext = messageProperties.headers;
     //context = rabbitMsg.properties.headers && {userId: rabbitMsg.properties.headers.userId}, //send just the userId
 
-    if (responseQueue && responseKey) {
+    if (responseQueue && responseId) {
       return this.send(responseQueue, null, this.messageBuilder.success(msg), false, responseId,responseContext);
     }
 
