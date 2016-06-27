@@ -436,7 +436,7 @@ module Ilm
             create_connection(total+1)
 
           rescue Exception => e
-            Rails.logger.fatal "Error on Rabbiter Init - #{e}"
+            Rails.logger.error "Error on Rabbiter Init - #{e}"
           end
         end
 
