@@ -1,0 +1,22 @@
+{
+  "name": "ilm-rabbiter-js",
+  "version": "0.0.0",
+  "description": "",
+  "main": "rabbiter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ilove-me/ilm-rabbiter-js.git"
+  },
+  "author": "admin@ilove.me",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ilove-me/ilm-rabbiter-js/issues"
+  },
+  "homepage": "https://github.com/ilove-me/ilm-rabbiter-js#readme",
+  "engines": {
+    "npm": ">=6.0.0"
+  }
+}

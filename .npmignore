@@ -1,0 +1,4 @@
+.jshintrc
+.eslintrc.json
+.git*
+*.sublime-*
