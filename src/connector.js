@@ -164,7 +164,12 @@ class Connector {
     return PromiseBlue.bind(this)
       .then(function () {
 
-        logger.info('%s [Received <-] %s %s', this.options.queueName, correlationId || 'no correlation id');
+        logger.info(
+          '[Received <-] %s in %s - %s',
+          correlationId || 'no correlation id',
+          this.options.queueName,
+          messageId || 'no action'
+        );
 
         //get callback function by message id
         var callbackFunction = Callbacks.removeSent(correlationId);
