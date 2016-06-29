@@ -4,7 +4,7 @@
   "description": "",
   "main": "rabbiter.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jshint"
   },
   "repository": {
     "type": "git",
@@ -18,5 +18,13 @@
   "homepage": "https://github.com/ilove-me/ilm-rabbiter-js#readme",
   "engines": {
     "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "amqplib": "^0.4.0",
+    "bluebird": "^3.1.5",
+    "lodash": "^4.0.1"
+  },
+  "devDependencies": {
+    "jshint": "^2.9.2"
   }
 }
