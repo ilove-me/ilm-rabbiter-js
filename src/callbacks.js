@@ -1,5 +1,3 @@
-var logger = require('winston');
-
 class Callbacks {
   constructor() {
     this.sentCallbacksMap = {};
