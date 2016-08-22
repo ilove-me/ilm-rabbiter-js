@@ -1,17 +1,24 @@
 {
-  "name": "rabbiter",
-  "version": "0.4.4",
-  "description": "Lib to connect to docker",
-  "main": "clients/javascript/rabbiter.js",
+  "name": "ilm-rabbiter-js",
+  "version": "1.0.3",
+  "description": "",
+  "main": "rabbiter.js",
   "scripts": {
-    "test": "jshint clients"
+    "test": "jshint"
   },
-  "private": true,
   "repository": {
     "type": "git",
-    "url": "https://olympus.ilove.me/iloveme/lib_rabbiter.git"
+    "url": "git+https://github.com/ilove-me/ilm-rabbiter-js.git"
   },
-  "author": "ilove.me",
+  "author": "admin@ilove.me",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ilove-me/ilm-rabbiter-js/issues"
+  },
+  "homepage": "https://github.com/ilove-me/ilm-rabbiter-js#readme",
+  "engines": {
+    "npm": ">=6.0.0"
+  },
   "dependencies": {
     "amqplib": "^0.4.0",
     "bluebird": "^3.1.5",
