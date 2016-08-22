@@ -2,7 +2,7 @@
   "name": "ilm-rabbiter-js",
   "version": "1.0.3",
   "description": "",
-  "main": "rabbiter.js",
+  "main": "lib/rabbiter.js",
   "scripts": {
     "test": "jshint"
   },
